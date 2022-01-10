@@ -15,7 +15,7 @@ public class Listener  implements MessageListener {
     private double avg = 1000;
     private double sum = 0;
 
-    @JmsListener(destination = "test1", containerFactory = "myFactory")
+    @JmsListener(destination = "test2", containerFactory = "myFactory")
     public void onMessage(Message message) {
         try {
             cnt++;
@@ -24,6 +24,7 @@ public class Listener  implements MessageListener {
             if(cnt % 1000 == 0) {
                 System.out.println("In-Cnt: " + cnt + "... avg-msg-time: " + avg);
             }
+            //throw new RuntimeException("--------------------ROLLBACK--------------------------");
         } catch (JMSException e) {
             e.printStackTrace();
         }
