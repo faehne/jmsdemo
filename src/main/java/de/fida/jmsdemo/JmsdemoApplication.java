@@ -26,7 +26,7 @@ public class JmsdemoApplication {
 	public ConnectionFactory connectionFactory(){
 		ActiveMQConnectionFactory activeMQConnectionFactory  = new ActiveMQConnectionFactory();
 		activeMQConnectionFactory.setBrokerURL("tcp://localhost:61616?jms.redeliveryPolicy.maximumRedeliveries=5");
-		activeMQConnectionFactory.setUseAsyncSend(true); //true --> wesentlich schneller aber auch nicht mehr save
+		activeMQConnectionFactory.setUseAsyncSend(false); //true --> wesentlich schneller aber auch nicht mehr save
 		//Embedded Version starten
 		//activeMQConnectionFactory.setBrokerURL("vm://embedded??broker.persistent=false?jms.redeliveryPolicy.maximumRedeliveries=5&jms.useAsyncSend=true");
 		return  activeMQConnectionFactory;
@@ -49,19 +49,19 @@ public class JmsdemoApplication {
 		ConfigurableApplicationContext ctx = SpringApplication.run(JmsdemoApplication.class, args);
 
 		//////////////// 1. Mit lokaler Sessiontransanction  über JmsTemplate ///////////////////////////
-		JmsTemplate jmsTemplate = ctx.getBean(JmsTemplate.class);
-		JmsTransactionManager transactionManager = new JmsTransactionManager(jmsTemplate.getConnectionFactory());
-		TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-		jmsTemplate.setExplicitQosEnabled(true);
-		jmsTemplate.setDeliveryPersistent(true); //Kein DLQ-Handling, wenn false
-		transactionTemplate.executeWithoutResult(transactionStatus -> {
-			for(int i = 0; i < 10000;i++) {
-				jmsTemplate.send("test", session -> {
-					TextMessage msg = session.createTextMessage("Hallo Welt");
-					return msg;
-				});
-			}
-		});
+//		JmsTemplate jmsTemplate = ctx.getBean(JmsTemplate.class);
+//		JmsTransactionManager transactionManager = new JmsTransactionManager(jmsTemplate.getConnectionFactory());
+//		TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+//		jmsTemplate.setExplicitQosEnabled(true);
+//		jmsTemplate.setDeliveryPersistent(true); //Kein DLQ-Handling, wenn false
+//		transactionTemplate.executeWithoutResult(transactionStatus -> {
+//			for(int i = 0; i < 10000;i++) {
+//				jmsTemplate.send("test", session -> {
+//					TextMessage msg = session.createTextMessage("Hallo Welt");
+//					return msg;
+//				});
+//			}
+//		});
 
 		//////////////// 2. Mit AutoAck  über JmsTemplate und non-persistent ///////////////////////////
 //		JmsTemplate jmsTemplate = ctx.getBean(JmsTemplate.class);
@@ -91,20 +91,28 @@ public class JmsdemoApplication {
 //		session.close();
 //		conn.close();
 
-		//////////////// 4. AutoAck über plain jms ///////////////////////////
-//		ConnectionFactory connectionFactory = ctx.getBean(ConnectionFactory.class);
-//		Connection conn = connectionFactory.createConnection();
-//		Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
-//		Destination destination = session.createQueue("test");
-//		MessageProducer producer = session.createProducer(destination);
-//
-//		for(int i = 0; i < 1000000;i++) {
-//			TextMessage msg = session.createTextMessage("Hallo Welt");
-//			msg.setJMSDeliveryMode(DeliveryMode.NON_PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
-//			producer.send(msg);
-//		}
-//		session.close();
-//		conn.close();
+		//////////////// 4. AutoAck über plain jms und replyTo ///////////////////////////
+		ConnectionFactory connectionFactory = ctx.getBean(ConnectionFactory.class);
+		Connection conn = connectionFactory.createConnection();
+		conn.start();
+		Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+		Destination destination = session.createQueue("test");
+		Destination tmpDest = session.createTemporaryQueue();
+		MessageConsumer responseConsumer = session.createConsumer(tmpDest);
+		responseConsumer.setMessageListener(new ReplyToMessageListener());
+		MessageProducer producer = session.createProducer(destination);
+
+		for(int i = 0; i < 50000;i++) {
+			TextMessage msg = session.createTextMessage("Hallo Welt");
+			msg.setJMSDeliveryMode(DeliveryMode.NON_PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
+			if(i % 1000 == 0) {
+				msg.setJMSCorrelationID(String.valueOf(i));
+				msg.setJMSReplyTo(tmpDest);
+			}
+			producer.send(msg);
+		}
+		session.close();
+		conn.close();
 
 	}
 

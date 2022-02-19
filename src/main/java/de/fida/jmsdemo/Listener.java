@@ -1,34 +1,33 @@
 package de.fida.jmsdemo;
 
 import org.springframework.jms.annotation.JmsListener;
+import org.springframework.jms.listener.SessionAwareMessageListener;
 import org.springframework.stereotype.Component;
 
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageListener;
-import javax.jms.TextMessage;
+import javax.jms.*;
 
 @Component
-public class Listener  implements MessageListener {
+public class Listener implements SessionAwareMessageListener<TextMessage> {
 
     private long cnt = 0;
-    private double avg = 1000;
     private double sum = 0;
 
     @JmsListener(destination = "test", containerFactory = "myFactory")
-    public void onMessage(Message message) {
-        try {
+    public void onMessage(TextMessage message, Session session) throws JMSException {
             cnt++;
             sum = sum + (System.currentTimeMillis() - message.getJMSTimestamp());
-            avg = sum / cnt;
+            double avg = sum / cnt;
             if(cnt % 1000 == 0) {
                 System.out.println("In-Cnt: " + cnt + "... avg-msg-time (ms): " + avg);
             }
+            if(message.getJMSReplyTo() != null) {
+                Message response = session.createTextMessage("Response to ID:" + message.getJMSCorrelationID());
+                response.setJMSCorrelationID(message.getJMSCorrelationID());
+                // Response
+                MessageProducer producer = session.createProducer(message.getJMSReplyTo());
+                producer.send(message.getJMSReplyTo(), response);
+            }
             // Zum Testen: Rollback auslösen - geht nicht bei Autoack
             //throw new RuntimeException("--------------------ROLLBACK--------------------------");
-        } catch (JMSException e) {
-            e.printStackTrace();
-        }
-
     }
 }
