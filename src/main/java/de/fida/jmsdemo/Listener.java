@@ -15,10 +15,12 @@ public class Listener implements SessionAwareMessageListener<TextMessage> {
     @JmsListener(destination = "test", containerFactory = "myFactory")
     public void onMessage(TextMessage message, Session session) throws JMSException {
             cnt++;
-            sum = sum + (System.currentTimeMillis() - message.getJMSTimestamp());
-            double avg = sum / cnt;
+            if(cnt > 1) {
+                sum = sum + (System.currentTimeMillis() - message.getJMSTimestamp());
+            }
             if(cnt % 1000 == 0) {
-                System.out.println("In-Cnt: " + cnt + "... avg-msg-time (ms): " + avg);
+                System.out.println("In-Cnt: " + cnt + "... avg-msg-time (ms): " + (sum / 1000));
+                sum = 0;
             }
             if(message.getJMSReplyTo() != null) {
                 Message response = session.createTextMessage("Response to ID:" + message.getJMSCorrelationID());
