@@ -12,7 +12,7 @@ public class Listener implements SessionAwareMessageListener<TextMessage> {
     private long cnt = 0;
     private double sum = 0;
 
-    @JmsListener(destination = "test", containerFactory = "myFactory")
+    @JmsListener(destination = "test?consumer.exclusive=true", containerFactory = "myFactory")
     public void onMessage(TextMessage message, Session session) throws JMSException {
             cnt++;
             if(cnt > 1) {

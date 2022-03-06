@@ -1,13 +1,11 @@
 package de.fida.jmsdemo;
 
-import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.ScheduledMessage;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
-import org.springframework.jms.connection.CachingConnectionFactory;
 import org.springframework.jms.connection.JmsTransactionManager;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -24,16 +22,16 @@ public class JmsdemoApplication {
     private final static String JMSSESS = "jmssess";
     private final static String JMSAUTO = "jmsauto";
 
-
-    @Bean
-    public ConnectionFactory connectionFactory() {
-        ActiveMQConnectionFactory activeMQConnectionFactory = new ActiveMQConnectionFactory();
-        activeMQConnectionFactory.setBrokerURL("tcp://localhost:61616?jms.redeliveryPolicy.maximumRedeliveries=5");
-        activeMQConnectionFactory.setUseAsyncSend(false); //true --> wesentlich schneller aber auch nicht mehr save
-        //Embedded Version starten
-        //activeMQConnectionFactory.setBrokerURL("vm://embedded??broker.persistent=false?jms.redeliveryPolicy.maximumRedeliveries=5&jms.useAsyncSend=true");
-        return new CachingConnectionFactory(activeMQConnectionFactory);
-    }
+// Kann so oder per application.properties geladen werden
+//    @Bean
+//    public ConnectionFactory connectionFactory() {
+//        ActiveMQConnectionFactory activeMQConnectionFactory = new ActiveMQConnectionFactory();
+//        activeMQConnectionFactory.setBrokerURL("tcp://localhost:61616?jms.redeliveryPolicy.maximumRedeliveries=5");
+//        activeMQConnectionFactory.setUseAsyncSend(false); //true --> wesentlich schneller aber auch nicht mehr save
+//        //Embedded Version starten
+//        //activeMQConnectionFactory.setBrokerURL("vm://embedded??broker.persistent=false?jms.redeliveryPolicy.maximumRedeliveries=5&jms.useAsyncSend=true");
+//        return new CachingConnectionFactory(activeMQConnectionFactory);
+//    }
 
     @Bean
     public DefaultJmsListenerContainerFactory myFactory(ConnectionFactory connectionFactory) {
