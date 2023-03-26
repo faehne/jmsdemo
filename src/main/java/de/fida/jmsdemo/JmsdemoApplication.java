@@ -1,5 +1,6 @@
 package de.fida.jmsdemo;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.ScheduledMessage;
 import org.springframework.boot.SpringApplication;
@@ -17,6 +18,7 @@ import javax.jms.*;
 import java.util.Scanner;
 
 @SpringBootApplication
+@Slf4j
 public class JmsdemoApplication {
 
     private final static String HELP = "help";
@@ -24,6 +26,7 @@ public class JmsdemoApplication {
     private final static String TEMPAUTO = "tempauto";
     private final static String JMSSESS = "jmssess";
     private final static String JMSAUTO = "jmsauto";
+    private final static String JMSAUTOEXT = "jmsautoext";
 
     @Bean
     public ConnectionFactory connectionFactory() {
@@ -69,16 +72,16 @@ public class JmsdemoApplication {
                             jmsTemplate.send("test", session -> session.createTextMessage("Hallo Welt"));
                         }
                     });
-                    System.out.println("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
+                    log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
                     break;
                 case TEMPAUTO:
                     //////////////// 2. Mit AutoAck  über JmsTemplate und non-persistent ///////////////////////////
                     jmsTemplate.setExplicitQosEnabled(true);
-                    jmsTemplate.setDeliveryPersistent(false); //Kein DLQ-Handling, wenn false
+                    jmsTemplate.setDeliveryPersistent(true); //Kein DLQ-Handling, wenn false
                     for (int i = 0; i < 10000; i++) {
                         jmsTemplate.send("test", session -> session.createTextMessage("Hallo Welt"));
                     }
-                    System.out.println("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
+                    log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
                     break;
                 case JMSSESS:
                     //////////////// 3. Mit lokaler Sessiontransanction  über plain jms ///////////////////////////
@@ -92,46 +95,65 @@ public class JmsdemoApplication {
                         msg.setJMSDeliveryMode(DeliveryMode.PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
                         producer.send(msg);
                     }
-                    System.out.println("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
+                    log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
                     session.commit();
                     session.close();
                     conn.close();
                     break;
                 case JMSAUTO:
-                    //////////////// 4. AutoAck über plain jms und replyTo und schedule ///////////////////////////
+                    //////////////// 4. AutoAck über plain jms /////////////////////////////////////////////////////
                     Connection conn4 = connectionFactory.createConnection();
                     conn4.start();
                     Session session4 = conn4.createSession(false, Session.AUTO_ACKNOWLEDGE);
                     Destination destination4 = session4.createQueue("test");
-                    Destination tmpDest = session4.createTemporaryQueue();
-                    MessageConsumer responseConsumer = session4.createConsumer(tmpDest);
-                    responseConsumer.setMessageListener(new ReplyToMessageListener());
                     MessageProducer producer4 = session4.createProducer(destination4);
+                    producer4.setDeliveryMode(DeliveryMode.NON_PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
+
+                    for (int i = 0; i < 100000; i++) {
+                        TextMessage msg = session4.createTextMessage("Hallo Welt");
+                        producer4.send(msg);
+                    }
+                    log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
+                    session4.close();
+                    conn4.close();
+                    break;
+                case JMSAUTOEXT:
+                    //////////////// 4. AutoAck über plain jms und replyTo und schedule ///////////////////////////
+                    Connection conn5 = connectionFactory.createConnection();
+                    conn5.start();
+                    Session session5 = conn5.createSession(false, Session.AUTO_ACKNOWLEDGE);
+                    Destination destination5 = session5.createQueue("test");
+                    Destination tmpDest = session5.createTemporaryQueue();
+                    MessageConsumer responseConsumer = session5.createConsumer(tmpDest);
+                    responseConsumer.setMessageListener(new ReplyToMessageListener());
+                    MessageProducer producer5 = session5.createProducer(destination5);
+                    producer5.setDeliveryMode(DeliveryMode.PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
 
                     for (int i = 0; i < 10000; i++) {
-                        TextMessage msg = session4.createTextMessage("Hallo Welt");
-                        msg.setJMSDeliveryMode(DeliveryMode.NON_PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
+                        TextMessage msg = session5.createTextMessage("Hallo Welt");
                         if (i % 1000 == 0) {
                             msg.setJMSCorrelationID(String.valueOf(i));
                             msg.setJMSReplyTo(tmpDest);
                         } else {
                             msg.setLongProperty(ScheduledMessage.AMQ_SCHEDULED_DELAY, 10 * 1000);
                         }
-                        producer4.send(msg);
+                        producer5.send(msg);
                     }
-                    System.out.println("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
+                    log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
                     try { //Notwendig, wenn die Temp-dest. länger bleiben muss (zB. bei Async send)
-                        Thread.sleep(3000);
+                        log.info("<<<<<<<<<<WAIT>>>>>>>>>>>>>>>>>>>>");
+                        Thread.sleep(30000);
+                        log.info("<<<<<<<<<<WAIT COMPLETE>>>>>>>>>>>>>>>>>>>>");
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    session4.close();
-                    conn4.close();
+                    session5.close();
+                    conn5.close();
                 default:
-                    System.out.println("tempsess - Mit lokaler Sessiontransanction  über JmsTemplate");
-                    System.out.println("tempauto - Mit AutoAck  über JmsTemplate und non-persistent");
-                    System.out.println("jmssess - Mit lokaler Sessiontransanction  über plain jms");
-                    System.out.println("jmsauto - AutoAck über plain jms und replyTo und schedule");
+                    log.info("tempsess - Mit lokaler Sessiontransanction  über JmsTemplate");
+                    log.info("tempauto - Mit AutoAck  über JmsTemplate und non-persistent");
+                    log.info("jmssess - Mit lokaler Sessiontransanction  über plain jms");
+                    log.info("jmsauto - AutoAck über plain jms und replyTo und schedule");
                     break;
             }
         }

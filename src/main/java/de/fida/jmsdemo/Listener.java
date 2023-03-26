@@ -1,5 +1,6 @@
 package de.fida.jmsdemo;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.jms.listener.SessionAwareMessageListener;
 import org.springframework.stereotype.Component;
@@ -7,22 +8,27 @@ import org.springframework.stereotype.Component;
 import javax.jms.*;
 
 @Component
+@Slf4j
 public class Listener implements SessionAwareMessageListener<TextMessage> {
 
     private long cnt = 0;
-    private double sum = 0;
+    private double sum = System.currentTimeMillis();
 
-    @JmsListener(destination = "test?consumer.exclusive=true", containerFactory = "myFactory")
+    //@JmsListener(destination = "test?consumer.exclusive=true", containerFactory = "myFactory")
+    @JmsListener(destination = "test", containerFactory = "myFactory", concurrency = "10")
     public void onMessage(TextMessage message, Session session) throws JMSException {
+        try {
             cnt++;
-            if(cnt > 1) {
-                sum = sum + (System.currentTimeMillis() - message.getJMSTimestamp());
+//            if(cnt == 1) {
+//                //sum = sum + (System.currentTimeMillis() - message.getJMSTimestamp());
+//                sum =
+//            }
+            if (cnt % 1000 == 0) {
+                log.info("In-Cnt: " + cnt + "... avg-msg-time (ms): " + ((System.currentTimeMillis() - sum) / 1000));
+                sum = System.currentTimeMillis();
             }
-            if(cnt % 1000 == 0) {
-                System.out.println("In-Cnt: " + cnt + "... avg-msg-time (ms): " + (sum / 1000));
-                sum = 0;
-            }
-            if(message.getJMSReplyTo() != null) {
+            if (message.getJMSReplyTo() != null) {
+                log.info("---Message to response---- " + ((TextMessage) message).getText());
                 Message response = session.createTextMessage("Response to ID:" + message.getJMSCorrelationID());
                 response.setJMSCorrelationID(message.getJMSCorrelationID());
                 // Response
@@ -31,5 +37,9 @@ public class Listener implements SessionAwareMessageListener<TextMessage> {
             }
             // Zum Testen: Rollback auslösen - geht nicht bei Autoack
             //throw new RuntimeException("--------------------ROLLBACK--------------------------");
+        } catch(Exception ex) {
+            log.error(ex.getMessage(),ex);
+            throw(ex);
+        }
     }
 }
