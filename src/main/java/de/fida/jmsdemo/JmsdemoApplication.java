@@ -3,14 +3,16 @@ package de.fida.jmsdemo;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.ScheduledMessage;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.jms.annotation.EnableJms;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import org.springframework.jms.connection.CachingConnectionFactory;
 import org.springframework.jms.connection.JmsTransactionManager;
+import org.springframework.jms.connection.SingleConnectionFactory;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -21,42 +23,17 @@ import java.util.Scanner;
 @Slf4j
 public class JmsdemoApplication {
 
-    private final static String HELP = "help";
     private final static String TEMPSESS = "tempsess";
     private final static String TEMPAUTO = "tempauto";
     private final static String JMSSESS = "jmssess";
     private final static String JMSAUTO = "jmsauto";
     private final static String JMSAUTOEXT = "jmsautoext";
 
-    @Bean
-    public ConnectionFactory connectionFactory() {
-        ActiveMQConnectionFactory activeMQConnectionFactory = new ActiveMQConnectionFactory();
-        //activeMQConnectionFactory.setBrokerURL("tcp://localhost:61616?jms.redeliveryPolicy.maximumRedeliveries=5");
-        //activeMQConnectionFactory.setUseAsyncSend(false); //true --> wesentlich schneller aber auch nicht mehr save
-        //Embedded Version starten
-        //activeMQConnectionFactory.setBrokerURL("vm://embedded??broker.persistent=false?jms.redeliveryPolicy.maximumRedeliveries=5&jms.useAsyncSend=true");
-        return new CachingConnectionFactory(activeMQConnectionFactory);
-    }
-
-    @Bean
-    public DefaultJmsListenerContainerFactory myFactory(ConnectionFactory connectionFactory) {
-        DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
-        factory.setConnectionFactory(connectionFactory);
-
-        ////////////////////////// 1. Consume per Transaction ////////////////////////
-//		factory.setSessionTransacted(true);
-//		factory.setSessionAcknowledgeMode(Session.SESSION_TRANSACTED);
-
-        ////////////////////////// 2. Consume per AutoAck - Nachricht wird nicht wiederholt; kein DLQ-Handling ////////////////////////
-        factory.setSessionAcknowledgeMode(Session.AUTO_ACKNOWLEDGE);
-        return factory;
-    }
-
     public static void main(String[] args) throws JMSException {
         ConfigurableApplicationContext ctx = SpringApplication.run(JmsdemoApplication.class, args);
         Scanner input = new Scanner(System.in);
-        JmsTemplate jmsTemplate = ctx.getBean(JmsTemplate.class);
-        ConnectionFactory connectionFactory = ctx.getBean(ConnectionFactory.class);
+        ConnectionFactory connectionFactory = ctx.getBean("connectionFactoryQueue",ConnectionFactory.class);
+        JmsTemplate jmsTemplate = new JmsTemplate(connectionFactory);
         try {
             mainLoop(input, jmsTemplate, connectionFactory);
         } catch(Exception ex) {
@@ -71,7 +48,7 @@ public class JmsdemoApplication {
             int msgCnt = inputLine.split(" ").length > 1 ? Integer.parseInt(inputLine.split(" ")[1]) : 10000;
             switch (command) {
                 case TEMPSESS:
-                    templateSession(jmsTemplate, msgCnt);
+                    templateSessionCommit(jmsTemplate, msgCnt);
                     break;
                 case TEMPAUTO:
                     templateAutoCommit(jmsTemplate, msgCnt);
@@ -101,7 +78,7 @@ public class JmsdemoApplication {
         Connection conn5 = connectionFactory.createConnection();
         conn5.start();
         Session session5 = conn5.createSession(false, Session.AUTO_ACKNOWLEDGE);
-        Destination destination5 = session5.createQueue("test");
+        Destination destination5 = session5.createQueue("test.jmsAutoCommitExtended.queue");
         Destination tmpDest = session5.createTemporaryQueue();
         MessageConsumer responseConsumer = session5.createConsumer(tmpDest);
         responseConsumer.setMessageListener(new ReplyToMessageListener());
@@ -135,7 +112,7 @@ public class JmsdemoApplication {
         Connection conn4 = connectionFactory.createConnection();
         conn4.start();
         Session session4 = conn4.createSession(false, Session.AUTO_ACKNOWLEDGE);
-        Destination destination4 = session4.createQueue("test");
+        Destination destination4 = session4.createQueue("test.jmsAutoCommit.queue");
         MessageProducer producer4 = session4.createProducer(destination4);
         producer4.setDeliveryMode(DeliveryMode.NON_PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
 
@@ -152,7 +129,7 @@ public class JmsdemoApplication {
         //////////////// 3. Mit lokaler Sessiontransanction  über plain jms ///////////////////////////
         Connection conn = connectionFactory.createConnection();
         Session session = conn.createSession(true, Session.SESSION_TRANSACTED);
-        Destination destination = session.createQueue("test");
+        Destination destination = session.createQueue("test.jmsSessionCommit.queue");
         MessageProducer producer = session.createProducer(destination);
 
         for (int i = 0; i < msgCnt; i++) {
@@ -171,12 +148,12 @@ public class JmsdemoApplication {
         jmsTemplate.setExplicitQosEnabled(true);
         jmsTemplate.setDeliveryPersistent(true); //Kein DLQ-Handling, wenn false
         for (int i = 0; i < msgCnt; i++) {
-            jmsTemplate.send("test", session -> session.createTextMessage("Hallo Welt"));
+            jmsTemplate.send("test.templateAutoCommit.queue", session -> session.createTextMessage("Hallo Welt"));
         }
         log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
     }
 
-    private static void templateSession(JmsTemplate jmsTemplate, int msgCnt) {
+    private static void templateSessionCommit(JmsTemplate jmsTemplate, int msgCnt) {
         //////////////// 1. Mit lokaler Sessiontransanction  über JmsTemplate ///////////////////////////
         JmsTransactionManager transactionManager = new JmsTransactionManager(jmsTemplate.getConnectionFactory());
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
@@ -184,7 +161,7 @@ public class JmsdemoApplication {
         jmsTemplate.setDeliveryPersistent(true); //Kein DLQ-Handling, wenn false
         transactionTemplate.executeWithoutResult(transactionStatus -> {
             for (int i = 0; i < msgCnt; i++) {
-                jmsTemplate.send("test", session -> session.createTextMessage("Hallo Welt"));
+                jmsTemplate.send("test.templateSessionCommit.queue", session -> session.createTextMessage("Hallo Welt"));
             }
         });
         log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
@@ -193,7 +170,6 @@ public class JmsdemoApplication {
     private static String getInputLine(Scanner input) {
         String inputLine = null;
         inputLine = input.nextLine();
-        log.info("ABORT");
         return inputLine;
     }
 

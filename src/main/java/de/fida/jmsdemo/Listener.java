@@ -20,7 +20,7 @@ public class Listener implements SessionAwareMessageListener<TextMessage> {
     ApplicationArguments args;
 
     //@JmsListener(destination = "test?consumer.exclusive=true", containerFactory = "myFactory")
-    @JmsListener(destination = "test", containerFactory = "myFactory", concurrency = "1")
+    @JmsListener(destination = "test.*.queue", containerFactory = "queueListenerFactory", concurrency = "1")
     public void onMessage(TextMessage message, Session session) throws JMSException {
         try {
             cnt++;
@@ -32,7 +32,7 @@ public class Listener implements SessionAwareMessageListener<TextMessage> {
                 log.info("In-Cnt: " + cnt + "... avg-msg-time (ms): " + ((System.currentTimeMillis() - sum) / 1000));
                 sum = System.currentTimeMillis();
             }
-            if(args.getNonOptionArgs().get(0).equals("all")) {
+            if(args.getOptionValues("printmsg").get(0).equals("all")) {
                 log.info("MSGID: {} MESSAGE: {}",((TextMessage) message).getJMSMessageID(),((TextMessage) message).getText());
             }
 
