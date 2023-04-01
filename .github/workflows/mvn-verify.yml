@@ -1,4 +1,4 @@
-name: ci
+name: Maven Verify
 on: push
 jobs:
   mvn-verify:
@@ -10,5 +10,6 @@ jobs:
         with:
           java-version: '11'
           distribution: 'adopt'
+          cache: 'maven'
       - name: build and verify
         run: mvn --batch-mode --update-snapshots verify
