@@ -1,18 +1,11 @@
 package de.fida.jmsdemo;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.ScheduledMessage;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.annotation.Bean;
-import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
-import org.springframework.jms.connection.CachingConnectionFactory;
 import org.springframework.jms.connection.JmsTransactionManager;
-import org.springframework.jms.connection.SingleConnectionFactory;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -28,6 +21,7 @@ public class JmsdemoApplication {
     private final static String JMSSESS = "jmssess";
     private final static String JMSAUTO = "jmsauto";
     private final static String JMSAUTOEXT = "jmsautoext";
+    private final static String JMSAUTOWILDCARD = "wild";
 
     public static void main(String[] args) throws JMSException {
         ConfigurableApplicationContext ctx = SpringApplication.run(JmsdemoApplication.class, args);
@@ -43,7 +37,7 @@ public class JmsdemoApplication {
 
     private static void mainLoop(Scanner input, JmsTemplate jmsTemplate, ConnectionFactory connectionFactory) throws JMSException {
         while (true) {
-            String inputLine = getInputLine(input);
+            String inputLine = input.nextLine();
             String command = inputLine.split(" ")[0];
             int msgCnt = inputLine.split(" ").length > 1 ? Integer.parseInt(inputLine.split(" ")[1]) : 10000;
             switch (command) {
@@ -58,6 +52,9 @@ public class JmsdemoApplication {
                     break;
                 case JMSAUTO:
                     jmsAutoCommit(connectionFactory, msgCnt);
+                    break;
+                case JMSAUTOWILDCARD:
+                    jmsAutoCommitWildcard(connectionFactory, msgCnt);
                     break;
                 case JMSAUTOEXT:
                     jmsAutoCommitExtended(connectionFactory, msgCnt);
@@ -75,54 +72,70 @@ public class JmsdemoApplication {
 
     private static void jmsAutoCommitExtended(ConnectionFactory connectionFactory, int msgCnt) throws JMSException {
         //////////////// 4. AutoAck über plain jms und replyTo und schedule ///////////////////////////
-        Connection conn5 = connectionFactory.createConnection();
-        conn5.start();
-        Session session5 = conn5.createSession(false, Session.AUTO_ACKNOWLEDGE);
-        Destination destination5 = session5.createQueue("test.jmsAutoCommitExtended.queue");
-        Destination tmpDest = session5.createTemporaryQueue();
-        MessageConsumer responseConsumer = session5.createConsumer(tmpDest);
+        Connection conn = connectionFactory.createConnection();
+        conn.start();
+        Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        Destination destination = session.createQueue("test.jmsAutoCommitExtended.queue");
+        Destination tmpDest = session.createTemporaryQueue();
+        MessageConsumer responseConsumer = session.createConsumer(tmpDest);
         responseConsumer.setMessageListener(new ReplyToMessageListener());
-        MessageProducer producer5 = session5.createProducer(destination5);
-        producer5.setDeliveryMode(DeliveryMode.PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
+        MessageProducer producer = session.createProducer(destination);
+        producer.setDeliveryMode(DeliveryMode.PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
 
         for (int i = 0; i < msgCnt; i++) {
-            TextMessage msg = session5.createTextMessage("Hallo Welt");
+            TextMessage msg = session.createTextMessage("Hallo Welt");
             if (i % 1000 == 0) {
                 msg.setJMSCorrelationID(String.valueOf(i));
                 msg.setJMSReplyTo(tmpDest);
             } else {
                 msg.setLongProperty(ScheduledMessage.AMQ_SCHEDULED_DELAY, 10 * 1000);
             }
-            producer5.send(msg);
+            producer.send(msg);
         }
         log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
         try { //Notwendig, wenn die Temp-dest. länger bleiben muss (zB. bei Async send)
             log.info("<<<<<<<<<<WAIT>>>>>>>>>>>>>>>>>>>>");
             Thread.sleep(3000);
             log.info("<<<<<<<<<<WAIT COMPLETE>>>>>>>>>>>>>>>>>>>>");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        session5.close();
-        conn5.close();
+        } catch (InterruptedException e) { }
+        session.close();
+        conn.close();
     }
 
     private static void jmsAutoCommit(ConnectionFactory connectionFactory, int msgCnt) throws JMSException {
         //////////////// 4. AutoAck über plain jms /////////////////////////////////////////////////////
-        Connection conn4 = connectionFactory.createConnection();
-        conn4.start();
-        Session session4 = conn4.createSession(false, Session.AUTO_ACKNOWLEDGE);
-        Destination destination4 = session4.createQueue("test.jmsAutoCommit.queue");
-        MessageProducer producer4 = session4.createProducer(destination4);
-        producer4.setDeliveryMode(DeliveryMode.NON_PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
+        Connection conn = connectionFactory.createConnection();
+        conn.start();
+        Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        Destination destination = session.createQueue("test.jmsAutoCommit.queue");
+        MessageProducer producer = session.createProducer(destination);
+        producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
 
         for (int i = 0; i < msgCnt; i++) {
-            TextMessage msg = session4.createTextMessage("Hallo Welt");
-            producer4.send(msg);
+            TextMessage msg = session.createTextMessage("Hallo Welt");
+            producer.send(msg);
         }
         log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
-        session4.close();
-        conn4.close();
+        session.close();
+        conn.close();
+    }
+
+    private static void jmsAutoCommitWildcard(ConnectionFactory connectionFactory, int msgCnt) throws JMSException {
+        //////////////// 4. AutoAck über plain jms /////////////////////////////////////////////////////
+        Connection conn = connectionFactory.createConnection();
+        conn.start();
+        Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        Destination destination = session.createQueue("test.*.queue");
+        MessageProducer producer = session.createProducer(destination);
+        producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
+
+        for (int i = 0; i < msgCnt; i++) {
+            TextMessage msg = session.createTextMessage("Hallo Welt");
+            producer.send(msg);
+        }
+        log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
+        session.close();
+        conn.close();
     }
 
     private static void jmsSessionCommit(ConnectionFactory connectionFactory, int msgCnt) throws JMSException {
@@ -166,11 +179,4 @@ public class JmsdemoApplication {
         });
         log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
     }
-
-    private static String getInputLine(Scanner input) {
-        String inputLine = null;
-        inputLine = input.nextLine();
-        return inputLine;
-    }
-
 }

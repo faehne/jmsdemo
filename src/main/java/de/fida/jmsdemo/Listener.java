@@ -24,20 +24,16 @@ public class Listener implements SessionAwareMessageListener<TextMessage> {
     public void onMessage(TextMessage message, Session session) throws JMSException {
         try {
             cnt++;
-//            if(cnt == 1) {
-//                //sum = sum + (System.currentTimeMillis() - message.getJMSTimestamp());
-//                sum =
-//            }
             if (cnt % 1000 == 0) {
                 log.info("In-Cnt: " + cnt + "... avg-msg-time (ms): " + ((System.currentTimeMillis() - sum) / 1000));
                 sum = System.currentTimeMillis();
             }
-            if(args.getOptionValues("printmsg").get(0).equals("all")) {
-                log.info("MSGID: {} MESSAGE: {}",((TextMessage) message).getJMSMessageID(),((TextMessage) message).getText());
+            if(args.getOptionValues("printmsg") != null && args.getOptionValues("printmsg").get(0).equals("all")) {
+                log.info("MSGID: {} MESSAGE: {}",message.getJMSMessageID(),message.getText());
             }
 
             if (message.getJMSReplyTo() != null) {
-                log.info("---Message to response---- " + ((TextMessage) message).getText());
+                log.info("---Message to response---- " + message.getText());
                 Message response = session.createTextMessage("Response to ID:" + message.getJMSCorrelationID());
                 response.setJMSCorrelationID(message.getJMSCorrelationID());
                 // Response
