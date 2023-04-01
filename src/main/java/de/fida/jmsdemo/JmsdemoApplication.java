@@ -21,7 +21,6 @@ public class JmsdemoApplication {
     private final static String JMSSESS = "jmssess";
     private final static String JMSAUTO = "jmsauto";
     private final static String JMSAUTOEXT = "jmsautoext";
-    private final static String JMSAUTOWILDCARD = "wild";
 
     public static void main(String[] args) throws JMSException {
         ConfigurableApplicationContext ctx = SpringApplication.run(JmsdemoApplication.class, args);
@@ -52,9 +51,6 @@ public class JmsdemoApplication {
                     break;
                 case JMSAUTO:
                     jmsAutoCommit(connectionFactory, msgCnt);
-                    break;
-                case JMSAUTOWILDCARD:
-                    jmsAutoCommitWildcard(connectionFactory, msgCnt);
                     break;
                 case JMSAUTOEXT:
                     jmsAutoCommitExtended(connectionFactory, msgCnt);
