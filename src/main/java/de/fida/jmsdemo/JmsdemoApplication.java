@@ -116,24 +116,6 @@ public class JmsdemoApplication {
         conn.close();
     }
 
-    private static void jmsAutoCommitWildcard(ConnectionFactory connectionFactory, int msgCnt) throws JMSException {
-        //////////////// 4. AutoAck über plain jms /////////////////////////////////////////////////////
-        Connection conn = connectionFactory.createConnection();
-        conn.start();
-        Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
-        Destination destination = session.createQueue("test.*.queue");
-        MessageProducer producer = session.createProducer(destination);
-        producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT); //Kein DLQ-Handling, wenn NON_PERSISTENT
-
-        for (int i = 0; i < msgCnt; i++) {
-            TextMessage msg = session.createTextMessage("Hallo Welt");
-            producer.send(msg);
-        }
-        log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
-        session.close();
-        conn.close();
-    }
-
     private static void jmsSessionCommit(ConnectionFactory connectionFactory, int msgCnt) throws JMSException {
         //////////////// 3. Mit lokaler Sessiontransanction  über plain jms ///////////////////////////
         Connection conn = connectionFactory.createConnection();
