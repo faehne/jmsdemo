@@ -1,7 +1,6 @@
 package de.fida.jmsdemo;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,32 +14,36 @@ import javax.jms.Session;
 @Configuration
 public class JmsdemoConfiguration {
 
-    @Autowired
-    ApplicationArguments appArgs;
+
+    private final ApplicationArguments appArgs;
+
+    public JmsdemoConfiguration(final ApplicationArguments appArgs) {
+        this.appArgs = appArgs;
+    }
 
     @Bean
-    public ConnectionFactory connectionFactoryQueue() {
-        ActiveMQConnectionFactory activeMQConnectionFactory = new ActiveMQConnectionFactory();
+    public ConnectionFactory factoryQueue() {
+        final ActiveMQConnectionFactory connFactory = new ActiveMQConnectionFactory();
         //activeMQConnectionFactory.setBrokerURL("tcp://localhost:61616?jms.redeliveryPolicy.maximumRedeliveries=5");
         //activeMQConnectionFactory.setUseAsyncSend(false); //true --> wesentlich schneller aber auch nicht mehr save
         //Embedded Version starten
         //activeMQConnectionFactory.setBrokerURL("vm://embedded??broker.persistent=false?jms.redeliveryPolicy.maximumRedeliveries=5&jms.useAsyncSend=true");
-        return new CachingConnectionFactory(activeMQConnectionFactory);
+        return new CachingConnectionFactory(connFactory);
     }
 
     @Bean
-    public ConnectionFactory connectionFactoryTopic() {
-        ActiveMQConnectionFactory activeMQConnectionFactory = new ActiveMQConnectionFactory();
+    public ConnectionFactory factoryTopic() {
+        final ActiveMQConnectionFactory connFactory = new ActiveMQConnectionFactory();
 
-        SingleConnectionFactory singleConnectionFactory = new SingleConnectionFactory(activeMQConnectionFactory);
-        singleConnectionFactory.setClientId("client-" + appArgs.getOptionValues("clientid").get(0));
-        return singleConnectionFactory;
+        final SingleConnectionFactory singleFactory = new SingleConnectionFactory(connFactory);
+        singleFactory.setClientId("client-" + appArgs.getOptionValues("clientid").get(0));
+        return singleFactory;
     }
 
     @Bean
-    public DefaultJmsListenerContainerFactory queueListenerFactory(ConnectionFactory connectionFactoryQueue) {
-        DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
-        factory.setConnectionFactory(connectionFactoryQueue);
+    public DefaultJmsListenerContainerFactory queueListenerFactory(final ConnectionFactory factoryQueue) {
+        final DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
+        factory.setConnectionFactory(factoryQueue);
 
         ////////////////////////// 1. Consume per Transaction ////////////////////////
 //		factory.setSessionTransacted(true);
@@ -52,9 +55,9 @@ public class JmsdemoConfiguration {
     }
 
     @Bean
-    public DefaultJmsListenerContainerFactory topicListenerFactory(ConnectionFactory connectionFactoryTopic) {
-        DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
-        factory.setConnectionFactory(connectionFactoryTopic);
+    public DefaultJmsListenerContainerFactory topicListenerFactory(final ConnectionFactory factoryTopic) {
+        final DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
+        factory.setConnectionFactory(factoryTopic);
         factory.setPubSubDomain(true);
         factory.setSubscriptionDurable(true);
         factory.setSessionAcknowledgeMode(Session.AUTO_ACKNOWLEDGE);

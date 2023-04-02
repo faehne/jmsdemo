@@ -1,5 +1,6 @@
 package de.fida.jmsdemo;
 
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.jms.listener.SessionAwareMessageListener;
@@ -11,15 +12,21 @@ import javax.jms.TextMessage;
 
 @Component
 @Slf4j
+@NoArgsConstructor
 public class TopicListener implements SessionAwareMessageListener<TextMessage> {
 
     @JmsListener(destination = "test.topic", containerFactory = "topicListenerFactory")
-    public void onMessage(TextMessage message, Session session) throws JMSException {
+    @Override
+    public void onMessage(final TextMessage message, final Session session) throws JMSException {
         try {
-            log.info("MSGID: {} MESSAGE: {}",message.getJMSMessageID(),message.getText());
-        } catch(Exception ex) {
-            log.error(ex.getMessage(),ex);
-            throw(ex);
+            if(log.isInfoEnabled()) {
+                log.info("MSGID: {} MESSAGE: {}",message.getJMSMessageID(),message.getText());
+            }
+        } catch(JMSException ex) {
+            if(log.isErrorEnabled()) {
+                log.error(ex.getMessage(), ex);
+            }
+            throw ex;
          }
     }
 }

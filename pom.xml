@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.6.2</version>
+		<version>2.7.10</version>
 		<relativePath/>
 	</parent>
 
@@ -21,6 +21,23 @@
 			<artifactId>spring-boot-starter-activemq</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.vintage</groupId>
+			<artifactId>junit-vintage-engine</artifactId>
+			<version>5.9.2</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.activemq.tooling</groupId>
+			<artifactId>activemq-junit</artifactId>
+			<version>5.18.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<version>1.18.26</version>
@@ -31,13 +48,41 @@
 	<build>
 		<plugins>
 			<plugin>
-				<artifactId>maven-jar-plugin</artifactId>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<version>3.20.0</version>
+				<executions>
+					<execution>
+						<phase>validate</phase>
+						<goals>
+							<goal>check</goal>
+							<goal>cpd-check</goal>
+						</goals>
+					</execution>
+				</executions>
 				<configuration>
-					<archive>
-						<manifest>
-							<mainClass>de.fida.jmsdemo.JmsdemoApplication</mainClass>
-						</manifest>
-					</archive>
+					<rulesets>
+						<ruleset>/category/java/bestpractices.xml</ruleset>
+						<ruleset>/category/java/codestyle.xml</ruleset>
+						<ruleset>rulesets/java/quickstart.xml</ruleset>
+						<ruleset>rulesets/java/unusedcode.xml</ruleset>
+						<ruleset>rulesets/java/imports.xml</ruleset>
+						<ruleset>rulesets/java/strings.xml</ruleset>
+						<ruleset>rulesets/java/typeresolution.xml</ruleset>
+						<ruleset>rulesets/java/unnecessary.xml</ruleset>
+						<ruleset>rulesets/java/braces.xml</ruleset>
+						<ruleset>rulesets/java/design.xml</ruleset>
+						<ruleset>rulesets/java/codesize.xml</ruleset>
+						<ruleset>rulesets/java/empty.xml</ruleset>
+						<ruleset>rulesets/java/naming.xml</ruleset>
+						<ruleset>rulesets/java/strictexception.xml</ruleset>
+						<ruleset>rulesets/java/optimizations.xml</ruleset>
+						<ruleset>rulesets/java/j2ee.xml</ruleset>
+						<ruleset>rulesets/java/junit.xml</ruleset>
+						<ruleset>rulesets/java/logging-java.xml</ruleset>
+						<ruleset>rulesets/java/clone.xml</ruleset>
+						<ruleset>rulesets/java/finalizers.xml</ruleset>
+					</rulesets>
 				</configuration>
 			</plugin>
 			<plugin>

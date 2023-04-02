@@ -1,5 +1,6 @@
 package de.fida.jmsdemo;
 
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.jms.JMSException;
@@ -8,13 +9,19 @@ import javax.jms.MessageListener;
 import javax.jms.TextMessage;
 
 @Slf4j
+@NoArgsConstructor
 public class ReplyToMessageListener implements MessageListener {
+
     @Override
-    public void onMessage(Message message) {
+    public void onMessage(final Message message) {
         try {
-            log.info("---ResponseMessage---- " + ((TextMessage) message).getText());
+            if(log.isInfoEnabled()) {
+                log.info("---ResponseMessage---- " + ((TextMessage) message).getText());
+            }
         } catch (JMSException e) {
-            e.printStackTrace();
+            if(log.isErrorEnabled()) {
+                log.error(e.getMessage(), e);
+            }
         }
     }
 }
