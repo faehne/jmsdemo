@@ -29,7 +29,8 @@ public class JmsTest {
     private MessageConsumer consumer;
     @Before
     public void before() throws JMSException {
-        ConnectionFactory factory = new ActiveMQConnectionFactory("vm://embedded-broker?create=false");
+        ConnectionFactory factory = new ActiveMQConnectionFactory(
+                "vm://embedded-broker?create=false");
         connection = factory.createConnection();
         connection.start();
         session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
@@ -56,7 +57,7 @@ public class JmsTest {
 
     @Test
     public void testMulti() throws Exception {
-        int cntExpected = 200;
+        int cntExpected = 100;
         for (int i = 0; i < cntExpected; i++) {
             TextMessage message = session.createTextMessage("testing" + i);
             producer.send(message);

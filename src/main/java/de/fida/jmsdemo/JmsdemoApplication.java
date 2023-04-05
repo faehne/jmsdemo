@@ -38,11 +38,15 @@ public class JmsdemoApplication {
         }
     }
 
-    private static void mainLoop(final Scanner input, final JmsTemplate jmsTemplate, final ConnectionFactory connectionFactory) throws JMSException {
+    private static void mainLoop(final Scanner input, final JmsTemplate jmsTemplate,
+                                 final ConnectionFactory connectionFactory) throws JMSException {
         while (true) {
             final String inputLine = input.nextLine();
             final String command = inputLine.split(" ")[0];
-            final int msgCnt = inputLine.split(" ").length > 1 ? Integer.parseInt(inputLine.split(" ")[1]) : 10_000;
+            final int msgCnt =
+                    inputLine.split(" ").length > 1 ?
+                            Integer.parseInt(inputLine.split(" ")[1])
+                            : 10_000;
             switch (command) {
                 case TEMPSESS:
                     templateSessionCommit(jmsTemplate, msgCnt);
@@ -70,7 +74,8 @@ public class JmsdemoApplication {
         }
     }
 
-    private static void jmsAutoCommitExtended(final ConnectionFactory connectionFactory, final int msgCnt) throws JMSException {
+    private static void jmsAutoCommitExtended(final ConnectionFactory connectionFactory, final int msgCnt)
+            throws JMSException {
         //////////////// 4. AutoAck über plain jms und replyTo und schedule ///////////////////////////
         @Cleanup final Connection conn = connectionFactory.createConnection();
         conn.start();
@@ -100,7 +105,8 @@ public class JmsdemoApplication {
         } catch (InterruptedException e) { }
     }
 
-    private static void jmsAutoCommit(final ConnectionFactory connectionFactory, final int msgCnt) throws JMSException {
+    private static void jmsAutoCommit(final ConnectionFactory connectionFactory, final int msgCnt)
+            throws JMSException {
         //////////////// 4. AutoAck über plain jms /////////////////////////////////////////////////////
         @Cleanup final Connection conn = connectionFactory.createConnection();
         conn.start();
@@ -115,7 +121,8 @@ public class JmsdemoApplication {
         log.info(SENDING_COMPLETE);
     }
 
-    private static void jmsSessionCommit(final ConnectionFactory connectionFactory, final int msgCnt) throws JMSException {
+    private static void jmsSessionCommit(final ConnectionFactory connectionFactory, final int msgCnt)
+            throws JMSException {
         //////////////// 3. Mit lokaler Sessiontransanction  über plain jms ///////////////////////////
         @Cleanup final Connection conn = connectionFactory.createConnection();
         @Cleanup final Session session = conn.createSession(true, Session.SESSION_TRANSACTED);
@@ -135,9 +142,10 @@ public class JmsdemoApplication {
         jmsTemplate.setExplicitQosEnabled(true);
         jmsTemplate.setDeliveryPersistent(true); //Kein DLQ-Handling, wenn false
         for (int i = 0; i < msgCnt; i++) {
-            jmsTemplate.send("test.templateAutoCommit.queue", session -> session.createTextMessage(HALLO_WELT));
+            jmsTemplate.send("test.templateAutoCommit.queue",
+                    session -> session.createTextMessage(HALLO_WELT));
         }
-        log.info("<<<<<<<<<<SENDING COMPLETE>>>>>>>>>>>>>>>>>>>>");
+        log.info(SENDING_COMPLETE);
     }
 
     private static void templateSessionCommit(final JmsTemplate jmsTemplate, final int msgCnt) {
@@ -148,7 +156,8 @@ public class JmsdemoApplication {
         jmsTemplate.setDeliveryPersistent(true); //Kein DLQ-Handling, wenn false
         transTemplate.executeWithoutResult(transactionStatus -> {
             for (int i = 0; i < msgCnt; i++) {
-                jmsTemplate.send("test.templateSessionCommit.queue", session -> session.createTextMessage(HALLO_WELT));
+                jmsTemplate.send("test.templateSessionCommit.queue",
+                        session -> session.createTextMessage(HALLO_WELT));
             }
         });
         log.info(SENDING_COMPLETE);

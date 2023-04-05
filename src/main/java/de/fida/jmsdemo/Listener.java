@@ -46,12 +46,13 @@ public class Listener implements SessionAwareMessageListener<TextMessage> {
          }
     }
 
-    private static void checkAndHandleReplyTo(final TextMessage message, final Session session) throws JMSException {
+    private void checkAndHandleReplyTo(final TextMessage message, final Session session) throws JMSException {
         if (message.getJMSReplyTo() != null) {
             if(log.isInfoEnabled()) {
                 log.info("---Message to response---- {}", message.getText());
             }
-            final TextMessage response = session.createTextMessage("Response to ID:" + message.getJMSCorrelationID());
+            final TextMessage response =
+                    session.createTextMessage("Response to ID:" + message.getJMSCorrelationID());
             response.setJMSCorrelationID(message.getJMSCorrelationID());
             // Response
             @Cleanup final MessageProducer producer = session.createProducer(message.getJMSReplyTo());
@@ -60,7 +61,8 @@ public class Listener implements SessionAwareMessageListener<TextMessage> {
     }
 
     private void printSingleMessage(final TextMessage message) throws JMSException {
-        if(appArgs.getOptionValues("printmsg") != null && appArgs.getOptionValues("printmsg").get(0).equals("all")) {
+        if(appArgs.getOptionValues("printmsg") != null &&
+                appArgs.getOptionValues("printmsg").get(0).equals("all")) {
             if(log.isInfoEnabled()) {
                 log.info("MSGID: {} MESSAGE: {}", message.getJMSMessageID(), message.getText());
             }
